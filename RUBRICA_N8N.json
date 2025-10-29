@@ -1,0 +1,675 @@
+{
+  "rubrica": {
+    "nombre": "Rúbrica TPI - Programación 2",
+    "version": "1.0",
+    "puntaje_maximo": 110,
+    "puntaje_aprobacion": 60,
+    "descripcion": "Evaluación automatizada de Trabajo Práctico Integrador - Sistema CRUD Java con MySQL",
+
+    "instrucciones_n8n": {
+      "formato_entrada": "Archivo único .txt o .java conteniendo todas las clases Java separadas por comentarios de delimitador",
+      "delimitador_clases": "// ===== CLASE: NombreClase.java =====",
+      "estructura_esperada": [
+        "Config/DatabaseConnection.java",
+        "Config/TransactionManager.java",
+        "Models/Base.java",
+        "Models/Persona.java",
+        "Models/Domicilio.java",
+        "Dao/GenericDAO.java",
+        "Dao/PersonaDAO.java",
+        "Dao/DomicilioDAO.java",
+        "Service/GenericService.java",
+        "Service/PersonaServiceImpl.java",
+        "Service/DomicilioServiceImpl.java",
+        "Main/Main.java",
+        "Main/AppMenu.java",
+        "Main/MenuHandler.java",
+        "Main/MenuDisplay.java"
+      ],
+      "metodo_extraccion": "Buscar patrones 'package' y 'public class' para identificar clases",
+      "salida": "JSON con puntajes por categoría y observaciones"
+    },
+
+    "categorias": [
+      {
+        "id": 1,
+        "nombre": "Arquitectura y Diseño",
+        "puntaje_maximo": 30,
+        "peso": 30,
+        "subcategorias": [
+          {
+            "id": "1.1",
+            "nombre": "Separación en Capas",
+            "puntaje_maximo": 10,
+            "criterios_verificacion": [
+              {
+                "patron": "package (Config|Models|Dao|Service|Main)",
+                "descripcion": "Verificar existencia de 4 capas diferenciadas",
+                "puntos_excelente": 10,
+                "puntos_muy_bueno": 8,
+                "puntos_bueno": 6,
+                "puntos_insuficiente": 4
+              },
+              {
+                "patron": "import (Service|Dao|Models)\\.",
+                "descripcion": "Verificar que Main importa Service, Service importa DAO, DAO importa Models",
+                "antipatron": "import Main\\.",
+                "mensaje_antipatron": "Dependencia inversa detectada: capas inferiores importan capas superiores"
+              }
+            ],
+            "verificaciones_automaticas": [
+              {
+                "tipo": "contar_paquetes",
+                "minimo": 5,
+                "descripcion": "Debe haber al menos 5 paquetes (Config, Models, Dao, Service, Main)"
+              },
+              {
+                "tipo": "verificar_imports",
+                "regla": "Main puede importar Service, Service puede importar Dao, Dao puede importar Models",
+                "violacion": -3
+              }
+            ]
+          },
+          {
+            "id": "1.2",
+            "nombre": "Patrones de Diseño",
+            "puntaje_maximo": 10,
+            "criterios_verificacion": [
+              {
+                "patron": "class \\w+DAO implements GenericDAO",
+                "descripcion": "Patrón DAO implementado",
+                "puntos": 3,
+                "minimo_ocurrencias": 2
+              },
+              {
+                "patron": "private static final String (SELECT|INSERT|UPDATE|DELETE)_",
+                "descripcion": "Queries SQL como constantes",
+                "puntos": 3,
+                "minimo_ocurrencias": 8
+              },
+              {
+                "patron": "class \\w+ServiceImpl implements",
+                "descripcion": "Service Layer implementado",
+                "puntos": 2,
+                "minimo_ocurrencias": 2
+              },
+              {
+                "patron": "public static \\w+ (getConnection|getInstance)\\(",
+                "descripcion": "Factory Pattern detectado",
+                "puntos": 2
+              }
+            ]
+          },
+          {
+            "id": "1.3",
+            "nombre": "Programación Orientada a Objetos",
+            "puntaje_maximo": 10,
+            "criterios_verificacion": [
+              {
+                "patron": "(abstract class|interface) \\w+",
+                "descripcion": "Uso de herencia/abstracción",
+                "puntos": 3,
+                "minimo_ocurrencias": 2
+              },
+              {
+                "patron": "private \\w+ \\w+;",
+                "descripcion": "Encapsulamiento (atributos privados)",
+                "puntos": 3,
+                "minimo_ocurrencias": 10,
+                "antipatron": "public \\w+ \\w+;(?!\\s*static)",
+                "penalizacion_antipatron": -2
+              },
+              {
+                "patron": "@Override\\s+(public|protected) (boolean equals|int hashCode|String toString)\\(",
+                "descripcion": "Sobrescritura de métodos (polimorfismo)",
+                "puntos": 2,
+                "minimo_ocurrencias": 3
+              },
+              {
+                "patron": "(public \\w+ get|public void set)\\w+\\(",
+                "descripcion": "Getters y Setters",
+                "puntos": 2,
+                "minimo_ocurrencias": 8
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "nombre": "Persistencia de Datos con JDBC",
+        "puntaje_maximo": 25,
+        "peso": 25,
+        "subcategorias": [
+          {
+            "id": "2.1",
+            "nombre": "Conexión y Operaciones CRUD",
+            "puntaje_maximo": 10,
+            "criterios_verificacion": [
+              {
+                "patron": "DriverManager\\.getConnection\\(",
+                "descripcion": "Conexión a base de datos",
+                "puntos": 2
+              },
+              {
+                "patron": "INSERT INTO",
+                "descripcion": "Operación CREATE",
+                "puntos": 2
+              },
+              {
+                "patron": "SELECT .+ FROM",
+                "descripcion": "Operación READ",
+                "puntos": 2
+              },
+              {
+                "patron": "UPDATE .+ SET",
+                "descripcion": "Operación UPDATE",
+                "puntos": 2
+              },
+              {
+                "patron": "UPDATE .+ SET eliminado = TRUE",
+                "descripcion": "Operación DELETE (soft delete)",
+                "puntos": 2
+              },
+              {
+                "patron": "Statement\\.RETURN_GENERATED_KEYS",
+                "descripcion": "Manejo de IDs autogenerados",
+                "puntos": 2,
+                "bonus": true
+              }
+            ]
+          },
+          {
+            "id": "2.2",
+            "nombre": "Seguridad y Consultas",
+            "puntaje_maximo": 8,
+            "criterios_verificacion": [
+              {
+                "patron": "PreparedStatement",
+                "descripcion": "Uso de PreparedStatements",
+                "puntos": 5,
+                "minimo_ocurrencias": 8,
+                "calculo": "proporcional",
+                "nota": "5 puntos si 100% de queries usan PreparedStatement"
+              },
+              {
+                "patron": "\"SELECT .+ \\\" \\+ ",
+                "descripcion": "SQL Injection detectado (concatenación de strings)",
+                "antipatron": true,
+                "penalizacion": -10,
+                "severidad": "critica"
+              },
+              {
+                "patron": "LEFT JOIN|INNER JOIN",
+                "descripcion": "Uso de JOIN",
+                "puntos": 2
+              },
+              {
+                "patron": "rs\\.wasNull\\(\\)",
+                "descripcion": "Manejo correcto de NULL en JOIN",
+                "puntos": 1
+              }
+            ]
+          },
+          {
+            "id": "2.3",
+            "nombre": "Transacciones",
+            "puntaje_maximo": 7,
+            "criterios_verificacion": [
+              {
+                "patron": "conn\\.setAutoCommit\\(false\\)",
+                "descripcion": "Desactivación de autocommit",
+                "puntos": 2
+              },
+              {
+                "patron": "conn\\.commit\\(\\)",
+                "descripcion": "Commit explícito",
+                "puntos": 2
+              },
+              {
+                "patron": "conn\\.rollback\\(\\)",
+                "descripcion": "Rollback en caso de error",
+                "puntos": 3
+              },
+              {
+                "patron": "insertTx\\(.*Connection",
+                "descripcion": "Métodos transaccionales que reciben Connection",
+                "puntos": 2,
+                "bonus": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "nombre": "Manejo de Recursos y Excepciones",
+        "puntaje_maximo": 20,
+        "peso": 20,
+        "subcategorias": [
+          {
+            "id": "3.1",
+            "nombre": "Gestión de Recursos JDBC",
+            "puntaje_maximo": 12,
+            "criterios_verificacion": [
+              {
+                "patron": "try \\(.*Connection.*=",
+                "descripcion": "Try-with-resources para Connection",
+                "puntos": 4,
+                "minimo_ocurrencias": 5
+              },
+              {
+                "patron": "try \\(.*PreparedStatement.*=",
+                "descripcion": "Try-with-resources para PreparedStatement",
+                "puntos": 4,
+                "minimo_ocurrencias": 5
+              },
+              {
+                "patron": "try \\(.*ResultSet.*=",
+                "descripcion": "Try-with-resources para ResultSet",
+                "puntos": 2,
+                "minimo_ocurrencias": 3
+              },
+              {
+                "patron": "implements AutoCloseable",
+                "descripcion": "Implementación de AutoCloseable en clases propias",
+                "puntos": 2,
+                "bonus": true
+              },
+              {
+                "patron": "\\.(close|dispose)\\(\\)",
+                "descripcion": "Cierre manual de recursos (no recomendado)",
+                "antipatron": true,
+                "penalizacion": -1,
+                "nota": "Preferir try-with-resources"
+              }
+            ]
+          },
+          {
+            "id": "3.2",
+            "nombre": "Manejo de Excepciones",
+            "puntaje_maximo": 8,
+            "criterios_verificacion": [
+              {
+                "patron": "catch \\((SQLException|Exception) \\w+\\)",
+                "descripcion": "Captura de excepciones",
+                "puntos": 3,
+                "minimo_ocurrencias": 5
+              },
+              {
+                "patron": "System\\.err\\.println|System\\.out\\.println.*[Ee]rror",
+                "descripcion": "Mensajes de error al usuario",
+                "puntos": 2,
+                "minimo_ocurrencias": 3
+              },
+              {
+                "patron": "throws (SQLException|Exception)",
+                "descripcion": "Propagación controlada de excepciones",
+                "puntos": 2
+              },
+              {
+                "patron": "catch \\(\\w+ \\w+\\) \\{\\s*\\}",
+                "descripcion": "Catch vacío detectado",
+                "antipatron": true,
+                "penalizacion": -3,
+                "severidad": "alta"
+              },
+              {
+                "patron": "\\.printStackTrace\\(\\)",
+                "descripcion": "printStackTrace sin contexto",
+                "antipatron": true,
+                "penalizacion": -1,
+                "nota": "Usar mensajes de error informativos"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "nombre": "Validación e Integridad de Datos",
+        "puntaje_maximo": 15,
+        "peso": 15,
+        "subcategorias": [
+          {
+            "id": "4.1",
+            "nombre": "Validaciones de Entrada",
+            "puntaje_maximo": 8,
+            "criterios_verificacion": [
+              {
+                "patron": "if \\(.*(== null|isEmpty\\(\\))\\)",
+                "descripcion": "Validación de campos obligatorios",
+                "puntos": 3,
+                "minimo_ocurrencias": 5
+              },
+              {
+                "patron": "\\.trim\\(\\)",
+                "descripcion": "Sanitización de entrada (trim)",
+                "puntos": 2,
+                "minimo_ocurrencias": 8
+              },
+              {
+                "patron": "if \\(\\w+ <= 0\\)",
+                "descripcion": "Validación de IDs positivos",
+                "puntos": 2,
+                "minimo_ocurrencias": 3
+              },
+              {
+                "patron": "throw new IllegalArgumentException",
+                "descripcion": "Lanzamiento de excepciones de validación",
+                "puntos": 1,
+                "minimo_ocurrencias": 3
+              }
+            ]
+          },
+          {
+            "id": "4.2",
+            "nombre": "Integridad Referencial",
+            "puntaje_maximo": 7,
+            "criterios_verificacion": [
+              {
+                "patron": "FOREIGN KEY|REFERENCES",
+                "descripcion": "Foreign Keys en esquema (buscar en comentarios SQL)",
+                "puntos": 2,
+                "nota": "Verificar en comentarios o documentación"
+              },
+              {
+                "patron": "UNIQUE",
+                "descripcion": "Constraints UNIQUE (ej: DNI)",
+                "puntos": 2
+              },
+              {
+                "patron": "validateDniUnique|buscarPorDni",
+                "descripcion": "Validación de unicidad en aplicación",
+                "puntos": 2
+              },
+              {
+                "patron": "setDomicilio\\(null\\).*actualizar.*eliminar",
+                "descripcion": "Eliminación segura (actualizar FK antes de eliminar)",
+                "puntos": 3,
+                "nota": "Verificar patrón de eliminación segura",
+                "bonus": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "nombre": "Funcionalidad Completa",
+        "puntaje_maximo": 10,
+        "peso": 10,
+        "criterios_verificacion": [
+          {
+            "patron": "void insertar\\(",
+            "descripcion": "Método insertar implementado",
+            "puntos": 2
+          },
+          {
+            "patron": "void actualizar\\(",
+            "descripcion": "Método actualizar implementado",
+            "puntos": 2
+          },
+          {
+            "patron": "void eliminar\\(",
+            "descripcion": "Método eliminar implementado",
+            "puntos": 2
+          },
+          {
+            "patron": "\\w+ getById\\(|List<\\w+> getAll\\(",
+            "descripcion": "Métodos de consulta implementados",
+            "puntos": 2
+          },
+          {
+            "patron": "LIKE.*%",
+            "descripcion": "Búsqueda flexible con LIKE",
+            "puntos": 1
+          },
+          {
+            "patron": "eliminado = (TRUE|FALSE)",
+            "descripcion": "Soft delete implementado",
+            "puntos": 1
+          }
+        ]
+      }
+    ],
+
+    "bonificaciones": [
+      {
+        "id": "B1",
+        "nombre": "Documentación Javadoc Completa",
+        "puntos": 3,
+        "verificacion": {
+          "patron": "/\\*\\*[\\s\\S]*?\\*/\\s*(public|private|protected)",
+          "minimo_ocurrencias": 30,
+          "descripcion": "Al menos 30 bloques Javadoc en métodos/clases principales"
+        }
+      },
+      {
+        "id": "B2",
+        "nombre": "Comentarios Explicativos",
+        "puntos": 2,
+        "verificacion": {
+          "patron": "//.*[Pp]atrón|[Rr]esponsabilidad|[Ff]lujo|RN-\\d+",
+          "minimo_ocurrencias": 20,
+          "descripcion": "Comentarios que explican patrones, responsabilidades y reglas de negocio"
+        }
+      },
+      {
+        "id": "B3",
+        "nombre": "Implementaciones Avanzadas",
+        "puntos": 2,
+        "verificacion": {
+          "patrones_multiples": [
+            "eliminarDomicilioDePersona",
+            "validateDniUnique",
+            "insertTx.*Connection"
+          ],
+          "minimo": 2,
+          "descripcion": "Eliminación segura, validación avanzada, o transacciones coordinadas"
+        }
+      },
+      {
+        "id": "B4",
+        "nombre": "Manejo de NULL en LEFT JOIN",
+        "puntos": 1,
+        "verificacion": {
+          "patron": "rs\\.wasNull\\(\\)|!= null.*getId\\(\\) > 0",
+          "minimo_ocurrencias": 2,
+          "descripcion": "Verificación correcta de NULL en resultados de LEFT JOIN"
+        }
+      },
+      {
+        "id": "B5",
+        "nombre": "Factory Pattern Completo",
+        "puntos": 1,
+        "verificacion": {
+          "patron": "private .*Constructor|private static final",
+          "descripcion": "Factory con constructor privado y validación static"
+        }
+      },
+      {
+        "id": "B6",
+        "nombre": "Dependency Injection Manual",
+        "puntos": 1,
+        "verificacion": {
+          "patron": "public \\w+\\(.*DAO.*\\)|public \\w+\\(.*Service.*\\)",
+          "minimo_ocurrencias": 3,
+          "descripcion": "Constructor injection en al menos 3 clases"
+        }
+      }
+    ],
+
+    "penalizaciones": [
+      {
+        "id": "P1",
+        "nombre": "SQL Injection Posible",
+        "puntos": -10,
+        "verificacion": {
+          "patron": "\"(SELECT|INSERT|UPDATE|DELETE).* \\+ .*\\+",
+          "severidad": "critica",
+          "descripcion": "Concatenación de strings en queries SQL"
+        }
+      },
+      {
+        "id": "P2",
+        "nombre": "Resource Leaks Evidentes",
+        "puntos": -5,
+        "verificacion": {
+          "patron": "Connection \\w+ = .*getConnection\\(\\);(?!.*try)",
+          "descripcion": "Conexión creada sin try-with-resources"
+        }
+      },
+      {
+        "id": "P3",
+        "nombre": "Catch Vacío",
+        "puntos": -3,
+        "verificacion": {
+          "patron": "catch \\(.*\\) \\{\\s*\\}",
+          "descripcion": "Bloque catch sin manejo de error",
+          "por_ocurrencia": true
+        }
+      },
+      {
+        "id": "P4",
+        "nombre": "Atributos Públicos No Constantes",
+        "puntos": -2,
+        "verificacion": {
+          "patron": "public (?!static final|class|interface|void|\\w+ get|\\w+ set)\\w+ \\w+;",
+          "descripcion": "Violación de encapsulamiento",
+          "por_ocurrencia": true
+        }
+      },
+      {
+        "id": "P5",
+        "nombre": "Contraseñas Hardcodeadas",
+        "puntos": -5,
+        "verificacion": {
+          "patron": "password.*=.*\".+\"|PASSWORD.*=.*\".+\"",
+          "descripcion": "Credenciales en código (excepto cadena vacía para desarrollo local)",
+          "excepcion": "password.*=.*\"\""
+        }
+      }
+    ],
+
+    "verificaciones_criticas": {
+      "descripcion": "Si alguna de estas falla, el proyecto está DESAPROBADO automáticamente (0 puntos)",
+      "criterios": [
+        {
+          "id": "C1",
+          "nombre": "Código Compila",
+          "verificacion": "Verificación manual o compilación previa",
+          "obligatorio": true
+        },
+        {
+          "id": "C2",
+          "nombre": "Al menos 3 capas",
+          "verificacion": {
+            "patron": "package (Models|Dao|Service)",
+            "minimo_paquetes": 3
+          },
+          "obligatorio": true
+        },
+        {
+          "id": "C3",
+          "nombre": "Mínimo 50% PreparedStatements",
+          "verificacion": {
+            "patron_positivo": "PreparedStatement",
+            "patron_negativo": "\"(SELECT|INSERT|UPDATE|DELETE).*\\+",
+            "ratio_minimo": 0.5
+          },
+          "obligatorio": true
+        },
+        {
+          "id": "C4",
+          "nombre": "Al menos 3 operaciones CRUD funcionan",
+          "verificacion": "Verificación manual de funcionalidad",
+          "obligatorio": true
+        }
+      ]
+    },
+
+    "escala_calificacion": [
+      {
+        "rango": [90, 110],
+        "nota": 10,
+        "resultado": "Excelente - Aprobado con Distinción",
+        "simbolo": "✅"
+      },
+      {
+        "rango": [80, 89],
+        "nota": "8-9",
+        "resultado": "Muy Bueno - Aprobado",
+        "simbolo": "✅"
+      },
+      {
+        "rango": [70, 79],
+        "nota": 7,
+        "resultado": "Bueno - Aprobado",
+        "simbolo": "✅"
+      },
+      {
+        "rango": [60, 69],
+        "nota": 6,
+        "resultado": "Aprobado",
+        "simbolo": "✅"
+      },
+      {
+        "rango": [40, 59],
+        "nota": "4-5",
+        "resultado": "Insuficiente - Desaprobado (Recuperable)",
+        "simbolo": "❌"
+      },
+      {
+        "rango": [0, 39],
+        "nota": "0-3",
+        "resultado": "Muy Insuficiente - Desaprobado",
+        "simbolo": "❌"
+      }
+    ],
+
+    "formato_salida": {
+      "estructura": {
+        "puntaje_total": "number",
+        "puntaje_base": "number",
+        "bonificaciones_obtenidas": "number",
+        "penalizaciones_aplicadas": "number",
+        "nota_final": "string",
+        "resultado": "string",
+        "aprobado": "boolean",
+        "desglose_categorias": "array",
+        "observaciones": "array",
+        "recomendaciones": "array",
+        "criterios_criticos_cumplidos": "boolean"
+      },
+      "ejemplo": {
+        "puntaje_total": 104,
+        "puntaje_base": 97,
+        "bonificaciones_obtenidas": 7,
+        "penalizaciones_aplicadas": 0,
+        "nota_final": "10",
+        "resultado": "Excelente - Aprobado con Distinción",
+        "aprobado": true,
+        "desglose_categorias": [
+          {
+            "id": 1,
+            "nombre": "Arquitectura y Diseño",
+            "puntaje_obtenido": 30,
+            "puntaje_maximo": 30,
+            "porcentaje": 100,
+            "observaciones": ["4 capas perfectamente separadas", "Todos los patrones implementados"]
+          }
+        ],
+        "observaciones": [
+          "Código de excelente calidad con separación perfecta de capas",
+          "Uso correcto de PreparedStatements en 100% de queries",
+          "Documentación Javadoc completa en todos los archivos"
+        ],
+        "recomendaciones": [
+          "Considerar implementar tests unitarios para completar bonificación"
+        ],
+        "criterios_criticos_cumplidos": true
+      }
+    }
+  }
+}
