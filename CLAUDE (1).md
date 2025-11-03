@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Java-based CRUD application for managing Personas (People) and Domicilios (Addresses) with MySQL persistence. Implements a strict 4-layer architecture with soft delete pattern, transaction support, and comprehensive validation.
+Java-based CRUD application for managing Pacientes (People) and HistoriaClinica s (Health Record ses) with MySQL persistence. Implements a strict 4-layer architecture with soft delete pattern, transaction support, and comprehensive validation.
 
 **Tech Stack:**
 - Java 17+
@@ -69,22 +69,22 @@ Expected output if MySQL is running and database exists:
 ```
 Conexion exitosa a la base de datos
 Usuario conectado: root@localhost
-Base de datos: dbtpi3
-URL: jdbc:mysql://localhost:3306/dbtpi3
+Base de datos: tfi_programacion2_java
+URL: jdbc:mysql://localhost:3306/tfi_programacion2_java
 Driver: MySQL Connector/J v8.4.0
 ```
 
 ## Database Configuration
 
 The application connects to MySQL with the following default configuration:
-- **Database**: `dbtpi3`
+- **Database**: `tfi_programacion2_java`
 - **Host**: `localhost:3306`
 - **User**: `root`
 - **Password**: empty string
 
 Configuration can be overridden using JVM system properties:
 ```bash
--Ddb.url=jdbc:mysql://localhost:3306/dbtpi3
+-Ddb.url=jdbc:mysql://localhost:3306/tfi_programacion2_java
 -Ddb.user=root
 -Ddb.password=your_password
 ```
@@ -96,28 +96,48 @@ Configuration can be overridden using JVM system properties:
 Required before first run:
 
 ```sql
-CREATE DATABASE IF NOT EXISTS dbtpi3;
-USE dbtpi3;
+CREATE DATABASE IF NOT EXISTS tfi_programacion2_java;
+USE tfi_programacion2_java;
 
-CREATE TABLE domicilios (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    calle VARCHAR(100) NOT NULL,
-    numero VARCHAR(10) NOT NULL,
-    eliminado BOOLEAN DEFAULT FALSE
+-- 2. Tabla Paciente (Clase A)
+CREATE TABLE IF NOT EXISTS Paciente (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    eliminado BOOLEAN NOT NULL DEFAULT FALSE,
+    nombre VARCHAR(80) NOT NULL,
+    apellido VARCHAR(80) NOT NULL,
+    dni VARCHAR(15) NOT NULL UNIQUE,
+    fechaNacimiento DATE,
+    
+    -- Índice en 'eliminado' para optimizar las búsquedas (getAll)
+    INDEX idx_eliminado (eliminado),
+    -- Índice en 'dni' ya está creado por la restricción UNIQUE
+    INDEX idx_apellido_nombre (apellido, nombre)
 );
 
-CREATE TABLE personas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    apellido VARCHAR(50) NOT NULL,
-    dni VARCHAR(20) NOT NULL UNIQUE,
-    domicilio_id INT,
-    eliminado BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (domicilio_id) REFERENCES domicilios(id)
+-- 3. Tabla HistoriaClinica (Clase B)
+CREATE TABLE IF NOT EXISTS HistoriaClinica (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    eliminado BOOLEAN NOT NULL DEFAULT FALSE,
+    nroHistoria VARCHAR(20) NOT NULL UNIQUE,
+    grupoSanguineo ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-') NOT NULL,
+    antecedentes TEXT,
+    medicacionActual TEXT,
+    observaciones TEXT,
+    
+    -- Columna para la relación 1:1
+    -- Se usa INT para coincidir con el 'id' de Paciente
+    paciente_id INT UNIQUE NOT NULL, 
+    
+    -- Restricción de clave foránea 
+    -- UNIQUE en paciente_id garantiza la 1:1.
+    -- ON DELETE CASCADE asegura que si se borra el Paciente (físicamente), se borra la HC.
+    FOREIGN KEY (paciente_id) REFERENCES Paciente(id) ON DELETE CASCADE,
+    
+    INDEX idx_eliminado (eliminado)
 );
 ```
 
-**Note**: DNI has UNIQUE constraint enforced at database level (RN-001). The application also validates uniqueness in PersonaServiceImpl before insert/update operations.
+**Note**: DNI has UNIQUE constraint enforced at database level (RN-001). The application also validates uniqueness in PacienteServiceImpl before insert/update operations.
 
 ## Architecture
 
@@ -145,31 +165,31 @@ Models (Domain Entities)
 
 #### 1. Models (`Models/`)
 - **Base.java**: Abstract base class for all entities with `id` and `eliminado` fields
-- **Persona.java**: Person entity with name, surname, DNI, and optional Domicilio
-- **Domicilio.java**: Address entity with street and number
+- **Paciente.java**: Patient  entity with name, surname, DNI, and optional HistoriaClinica 
+- **HistoriaClinica.java**: Health Record s entity with street and number
 
 All models implement `equals()`, `hashCode()`, and `toString()`.
 
 #### 2. DAO Layer (`Dao/`)
 - **GenericDAO\<T\>**: Interface defining standard CRUD operations
-- **PersonaDAO**: Implements Person operations with JOIN queries for Domicilio
-- **DomicilioDAO**: Implements Address operations
+- **PacienteDAO**: Implements Patient  operations with JOIN queries for HistoriaClinica 
+- **HistoriaClinicaDAO**: Implements Health Record s operations
 
 **Important patterns:**
 - SQL queries are defined as `private static final String` constants
-- Helper methods (e.g., `mapResultSetToPersona()`) extract mapping logic
+- Helper methods (e.g., `mapResultSetToPaciente()`) extract mapping logic
 - `insertTx()` methods accept a Connection for transaction support
 - All SELECT queries filter by `eliminado = FALSE`
 - UPDATE/DELETE operations verify affected rows
 
 #### 3. Service Layer (`Service/`)
 - **GenericService\<T\>**: Interface for business logic operations
-- **PersonaServiceImpl**: Validates Person data and coordinates with DomicilioService
-- **DomicilioServiceImpl**: Validates Address data
+- **PacienteServiceImpl**: Validates Patient  data and coordinates with HistoriaClinica Service
+- **HistoriaClinicaServiceImpl**: Validates Health Record s data
 
 **Responsibilities:**
 - Input validation before database operations
-- Coordinating cascading operations (e.g., inserting Domicilio before Persona)
+- Coordinating cascading operations (e.g., inserting Historia Clinica before Paciente)
 - Exception handling and transformation
 
 #### 4. Main/UI Layer (`Main/`)
@@ -201,26 +221,26 @@ All Java source files contain comprehensive Javadoc that explains:
 ### Key Documentation Locations
 
 **Understanding the flow of data**:
-1. Start with `AppMenu.java`: See how dependencies are wired in `createPersonaService()`
+1. Start with `AppMenu.java`: See how dependencies are wired in `createPacienteService()`
 2. Follow to `MenuHandler.java`: See how user input flows to services
-3. Check service layer: `PersonaServiceImpl.insertar()` shows coordination with DomicilioService
-4. Review DAO layer: `PersonaDAO.insertar()` shows actual database operations
+3. Check service layer: `PacienteServiceImpl.insertar()` shows coordination with HistoriaClinica Service
+4. Review DAO layer: `PacienteDAO.insertar()` shows actual database operations
 
 **Understanding dangerous operations**:
-- `DomicilioServiceImpl.eliminar()`: Lines 82-100 explain why this is unsafe (RN-029)
-- `PersonaServiceImpl.eliminarDomicilioDePersona()`: Lines 216-256 explain safe deletion pattern
-- `MenuHandler.eliminarDomicilioPorId()`: Lines 353-386 document the danger
-- `MenuHandler.eliminarDomicilioPorPersona()`: Lines 444-461 document the safe alternative
+- `HistoriaClinicaServiceImpl.eliminar()`: Lines 82-100 explain why this is unsafe (RN-029)
+- `PacienteServiceImpl.eliminarHistoriaClinica DePaciente()`: Lines 216-256 explain safe deletion pattern
+- `MenuHandler.eliminarHistoriaClinica PorId()`: Lines 353-386 document the danger
+- `MenuHandler.eliminarHistoriaClinica PorPaciente()`: Lines 444-461 document the safe alternative
 
 **Understanding DNI uniqueness (RN-001)**:
-- Database: UNIQUE constraint on `personas.dni` column
-- `PersonaServiceImpl.validateDniUnique()`: Lines 283-315 explain validation logic
-- `PersonaDAO.buscarPorDni()`: Lines 311-340 implement exact DNI search
-- `MenuHandler.crearPersona()`: Shows user-facing error handling
+- Database: UNIQUE constraint on `pacientes.dni` column
+- `PacienteServiceImpl.validateDniUnique()`: Lines 283-315 explain validation logic
+- `PacienteDAO.buscarPorDni()`: Lines 311-340 implement exact DNI search
+- `MenuHandler.crearPaciente()`: Shows user-facing error handling
 
 **Understanding LEFT JOIN pattern**:
-- `PersonaDAO`: SQL constants show LEFT JOIN with domicilios table
-- `PersonaDAO.mapResultSetToPersona()`: Lines 410-452 explain NULL handling
+- `PacienteDAO`: SQL constants show LEFT JOIN with domicilios table
+- `PacienteDAO.mapResultSetToPaciente()`: Lines 410-452 explain NULL handling
 - Comments explain why `rs.wasNull()` check is critical
 
 ## Development Patterns
@@ -228,10 +248,10 @@ All Java source files contain comprehensive Javadoc that explains:
 ### Dependency Injection
 Services are constructed with their dependencies:
 ```java
-DomicilioDAO domicilioDAO = new DomicilioDAO();
-PersonaDAO personaDAO = new PersonaDAO(domicilioDAO);
-DomicilioServiceImpl domicilioService = new DomicilioServiceImpl(domicilioDAO);
-PersonaServiceImpl personaService = new PersonaServiceImpl(personaDAO, domicilioService);
+HistoriaClinicaDAO domicilioDAO = new HistoriaClinicaDAO();
+PacienteDAO pacienteDAO = new PacienteDAO(domicilioDAO);
+HistoriaClinicaServiceImpl domicilioService = new HistoriaClinicaServiceImpl(domicilioDAO);
+PacienteServiceImpl pacienteService = new PacienteServiceImpl(pacienteDAO, domicilioService);
 ```
 
 ### Transaction Support
@@ -271,26 +291,26 @@ try (Connection conn = DatabaseConnection.getConnection();
 2. **ID Validation**: Services validate `id > 0` for update/delete/getById operations
 3. **Null Safety**: Services validate required fields are not null/empty
 4. **Row Verification**: DAOs check `rowsAffected` after UPDATE/DELETE operations
-5. **Foreign Key Logic**: PersonaService manages Domicilio insertion/updates before Persona
-6. **Referential Integrity**: Use `PersonaServiceImpl.eliminarDomicilioDePersona()` to safely remove domicilios - it updates persona reference BEFORE deletion
+5. **Foreign Key Logic**: PacienteService manages Historia Clínica insertion/updates before Paciente
+6. **Referential Integrity**: Use `PacienteServiceImpl.eliminarHistoriaClinica DePaciente()` to safely remove domicilios - it updates paciente reference BEFORE deletion
 7. **SQL Constants**: Always use predefined SQL constants (e.g., `SELECT_BY_ID_SQL`) instead of inline queries
 8. **Update Preservation**: In MenuHandler update methods, use `.trim()` immediately after `scanner.nextLine()` and only set non-empty values
-9. **DNI Uniqueness (RN-001)**: DNI must be unique per person - enforced via:
-   - Database UNIQUE constraint on `personas.dni` column
-   - Application-level validation in `PersonaServiceImpl.validateDniUnique()`
+9. **DNI Uniqueness (RN-001)**: DNI must be unique per patient  - enforced via:
+   - Database UNIQUE constraint on `pacientes.dni` column
+   - Application-level validation in `PacienteServiceImpl.validateDniUnique()`
    - Validation runs before insert and update operations
 10. **Configuration Validation**: Database connection parameters validated once at class initialization (not per connection)
 
 ## Critical Code Patterns
 
-### Safe Domicilio Deletion
-**NEVER** delete a domicilio directly if it's referenced by a persona. Always use:
+### Safe Historia Clínica Deletion
+**NEVER** delete a historia clinica directly if it's referenced by a paciente. Always use:
 ```java
-personaService.eliminarDomicilioDePersona(personaId, domicilioId);
+pacienteService.eliminarHistoriaClinica DePaciente(pacienteId, domicilioId);
 ```
 This method:
-1. Validates the domicilio belongs to the persona
-2. Sets `persona.domicilio_id = NULL` in database
+1. Validates the historia clinica belongs to the paciente
+2. Sets `paciente.domicilio_id = NULL` in database
 3. Then soft-deletes the domicilio
 4. Prevents orphaned foreign key references
 
@@ -300,13 +320,13 @@ When updating entities through user input:
 // CORRECT pattern - trim first, then check if empty
 String nombre = scanner.nextLine().trim();
 if (!nombre.isEmpty()) {
-    persona.setNombre(nombre);
+    paciente.setNombre(nombre);
 }
 
 // WRONG pattern - checking before trim can cause issues
 String nombre = scanner.nextLine();
 if (!nombre.trim().isEmpty()) {  // Don't do this
-    persona.setNombre(nombre);
+    paciente.setNombre(nombre);
 }
 ```
 
@@ -326,24 +346,24 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 ```
 
 ### DNI Uniqueness Validation
-When creating or updating personas, DNI uniqueness is automatically validated:
+When creating or updating pacientes, DNI uniqueness is automatically validated:
 ```java
-// In PersonaServiceImpl
-private void validateDniUnique(String dni, Integer personaId) throws Exception {
-    Persona existente = personaDAO.buscarPorDni(dni);
+// In PacienteServiceImpl
+private void validateDniUnique(String dni, Integer pacienteId) throws Exception {
+    Paciente existente = pacienteDAO.buscarPorDni(dni);
     if (existente != null) {
-        // For updates, allow same DNI if it's the same person
-        if (personaId == null || existente.getId() != personaId) {
-            throw new IllegalArgumentException("Ya existe una persona con el DNI: " + dni);
+        // For updates, allow same DNI if it's the same patient 
+        if (pacienteId == null || existente.getId() != pacienteId) {
+            throw new IllegalArgumentException("Ya existe una paciente con el DNI: " + dni);
         }
     }
 }
 ```
 
 **Search methods available:**
-- `PersonaDAO.buscarPorDni(String dni)` - Returns single Persona or null
-- `PersonaServiceImpl.buscarPorDni(String dni)` - Service-level wrapper with validation
-- `PersonaDAO.buscarPorNombreApellido(String filtro)` - Returns list with LIKE pattern matching
+- `PacienteDAO.buscarPorDni(String dni)` - Returns single Paciente or null
+- `PacienteServiceImpl.buscarPorDni(String dni)` - Service-level wrapper with validation
+- `PacienteDAO.buscarPorNombreApellido(String filtro)` - Returns list with LIKE pattern matching
 
 ## Entry Points and Menu System
 
@@ -356,30 +376,26 @@ The interactive menu has 10 operations:
 
 | Option | Description | MenuHandler Method | Key Service Method |
 |--------|-------------|-------------------|-------------------|
-| 1 | Create Person | `crearPersona()` | `PersonaServiceImpl.insertar()` |
-| 2 | List Persons | `listarPersonas()` | `PersonaServiceImpl.getAll()` or `buscarPorNombreApellido()` |
-| 3 | Update Person | `actualizarPersona()` | `PersonaServiceImpl.actualizar()` |
-| 4 | Delete Person | `eliminarPersona()` | `PersonaServiceImpl.eliminar()` |
-| 5 | Create Address | `crearDomicilioIndependiente()` | `DomicilioServiceImpl.insertar()` |
-| 6 | List Addresses | `listarDomicilios()` | `DomicilioServiceImpl.getAll()` |
-| 7 | Update Address by ID | `actualizarDomicilioPorId()` | `DomicilioServiceImpl.actualizar()` |
-| 8 | Delete Address by ID | `eliminarDomicilioPorId()` | `DomicilioServiceImpl.eliminar()` ⚠️ |
-| 9 | Update Address by Person | `actualizarDomicilioPorPersona()` | `DomicilioServiceImpl.actualizar()` |
-| 10 | Delete Address by Person | `eliminarDomicilioPorPersona()` | `PersonaServiceImpl.eliminarDomicilioDePersona()` ✅ |
+| 1 | Create Patient  | `crearPaciente()` | `PacienteServiceImpl.insertar()` |
+| 2 | List Patients | `listarPacientes()` | `PacienteServiceImpl.getAll()` or `buscarPorNombreApellido()` |
+| 3 | Update Patient  | `actualizarPaciente()` | `PacienteServiceImpl.actualizar()` |
+| 4 | Delete Patient  | `eliminarPaciente()` | `PacienteServiceImpl.eliminar()` |
+| 5 | Search Patien by NDI | `buscarPacientePorDNI()` |
+| 6 | Search Patien by Id | `buscarPacientePorId()` |
 | 0 | Exit | Sets `running = false` | - |
 
-**⚠️ Option 8 is unsafe** - can leave orphaned foreign keys in `personas.domicilio_id`
-**✅ Option 10 is safe** - updates persona reference before deleting domicilio
+**⚠️ Option 8 is unsafe** - can leave orphaned foreign keys in `paciente.domicilio_id`
+**✅ Option 10 is safe** - updates paciente reference before deleting domicilio
 
 ## Known Limitations and Design Decisions
 
 1. **No Gradle `run` task**: Application must be executed via `java -cp` with manual classpath or through IDE
 2. **Console-only UI**: No GUI - all interaction through text menu
-3. **One domicilio per persona**: Cannot associate multiple addresses to a person
-4. **No atomic updates**: MenuHandler update operations aren't transactional (updating persona + domicilio may partially succeed)
+3. **One historia per paciente**: Cannot associate multiple health record ses to a patient 
+4. **No atomic updates**: MenuHandler update operations aren't transactional (updating paciente + historia clínica may partially succeed)
 5. **Manual schema setup**: Database must be created and populated manually
 6. **No connection pooling**: New connection created per operation (acceptable for console app)
-7. **Dangerous delete operation exists**: MenuHandler option 8 (delete domicilio by ID) can orphan foreign keys - use option 10 instead (see Critical Code Patterns)
+7. **Dangerous delete operation exists**: MenuHandler option 8 (delete historia clinica by ID) can orphan foreign keys - use option 10 instead (see Critical Code Patterns)
 8. **No pagination**: Listing all records may be slow with large datasets
 
 ## Troubleshooting
@@ -407,7 +423,7 @@ The interactive menu has 10 operations:
 - Password is incorrect in `DatabaseConnection.java`
 - Update credentials or use system properties: `-Ddb.user=myuser -Ddb.password=mypass`
 
-**Problem**: `Unknown database 'dbtpi3'`
+**Problem**: `Unknown database 'tfi_programacion2_java'`
 - Database hasn't been created
 - Run the SQL schema setup from "Database Schema Setup" section above
 
@@ -419,12 +435,13 @@ The interactive menu has 10 operations:
 **Problem**: Application runs but all operations fail with database errors
 - Tables don't exist or have wrong schema
 - Run the complete SQL schema from "Database Schema Setup" section
-- Verify tables: `SHOW TABLES FROM dbtpi3;` in MySQL console
+- Verify tables: `SHOW TABLES FROM tfi_programacion2_java;` in MySQL console
 
 **Problem**: Menu shows but nothing happens when selecting options
 - This is normal behavior if MySQL is not running
 - Application gracefully handles connection errors and returns to menu
 - Check console for error messages starting with "Error al..."
+
 
 ### Testing Without Database
 
@@ -439,26 +456,26 @@ Expected behavior without MySQL:
 ========= MENU =========
 [menu options displayed]
 Ingrese una opcion: 2
-Error al listar personas: Communications link failure
+Error al listar pacientes: Communications link failure
 [returns to menu - application does NOT crash]
 ```
 
 ## Recent Improvements (2025)
 
-The following improvements have been implemented to address design anomalies:
+The following improvements have been implemented to health record s design anomalies:
 
 ### 1. DNI Uniqueness Enforcement (RN-001)
-- **Database**: Added UNIQUE constraint on `personas.dni` column
-- **Application**: Implemented `PersonaServiceImpl.validateDniUnique()` method
-- **DAO**: Added `PersonaDAO.buscarPorDni(String dni)` for exact DNI lookups
-- **Service**: Added `PersonaServiceImpl.buscarPorDni(String dni)` wrapper
+- **Database**: Added UNIQUE constraint on `paciente.dni` column
+- **Application**: Implemented `PacienteServiceImpl.validateDniUnique()` method
+- **DAO**: Added `PacienteDAO.buscarPorDni(String dni)` for exact DNI lookups
+- **Service**: Added `PacienteServiceImpl.buscarPorDni(String dni)` wrapper
 - **Impact**: Prevents duplicate DNI entries at both database and application levels
 
 ### 2. Architecture Improvements
 - **Main.java**: Removed antipattern of calling `AppMenu.main()` from `Main.main()`
   - Now correctly instantiates `AppMenu` and calls `run()` method
-- **Domicilio.java**: Standardized constructor parameter from `Integer` to `int`
-  - Consistent with `Persona` constructor and eliminates autoboxing
+- **HistoriaClinica.java**: Standardized constructor parameter from `Integer` to `int`
+  - Consistent with `Paciente` constructor and eliminates autoboxing
 
 ### 3. Performance Optimizations
 - **DatabaseConnection**: Configuration validation moved from `getConnection()` to static initialization block
@@ -468,7 +485,7 @@ The following improvements have been implemented to address design anomalies:
 ### 4. Enhanced Diagnostics
 - **TestConexion**: Now displays detailed connection information:
   - User connected (e.g., `root@localhost`)
-  - Database name (e.g., `dbtpi3`)
+  - Database name (e.g., `tfi_programacion2_java`)
   - JDBC URL
   - Driver name and version
 
@@ -480,8 +497,8 @@ The following improvements have been implemented to address design anomalies:
 ### 6. Input Handling Standardization (Complete)
 - **MenuHandler**: Standardized `trim()` pattern across ALL input operations
   - **Pattern**: `String x = scanner.nextLine().trim();` immediately after input
-  - **Update methods fixed** (earlier): `actualizarDomicilioDePersona()`, `actualizarDomicilioPorPersona()`
-  - **Creation methods fixed** (final): `crearPersona()`, `crearDomicilio()`, `listarPersonas()` search filter
+  - **Update methods fixed** (earlier): `actualizarHistoriaClinicaPaciente()`, `actualizarHistoriaClinica PorPaciente()`
+  - **Creation methods fixed** (final): `crearPaciente()`, `crearHistoriaClinica()`, `listarPacientes()` search filter
   - **Impact**:
     - Prevents storing leading/trailing whitespace in database
     - Ensures DNI uniqueness validation works correctly (no spaces causing false positives)
@@ -491,7 +508,7 @@ The following improvements have been implemented to address design anomalies:
 **All changes tested and verified with `./gradlew clean build` - builds successfully.**
 
 ### 7. Exception Handling Consistency
-- **Pattern**: All DAO methods declare `throws Exception` (PersonaDAO) or `throws SQLException` (DomicilioDAO)
+- **Pattern**: All DAO methods declare `throws Exception` (PacienteDAO) or `throws SQLException` (HistoriaClinicaDAO)
   - GenericDAO interface uses `throws Exception` - both are compatible
   - Service layer consistently throws Exception
   - UI layer catches all exceptions and displays user-friendly messages
@@ -507,17 +524,17 @@ The following improvements have been implemented to address design anomalies:
   - Warning annotations (⚠️) for dangerous operations
   - Examples and edge case documentation
 - **Total files documented**: 13 Java source files across all layers
-  - Models: Base, Domicilio, Persona
+  - Models: Base, HistoriaClinica , Paciente
   - Config: DatabaseConnection, TransactionManager
-  - Services: DomicilioServiceImpl, PersonaServiceImpl
-  - DAOs: PersonaDAO, DomicilioDAO
+  - Services: HistoriaClinicaServiceImpl, PacienteServiceImpl
+  - DAOs: PacienteDAO, HistoriaClinicaDAO
   - Main: AppMenu, MenuHandler, MenuDisplay, Main
 - **Documentation style**: Spanish (matches codebase language)
 - **Key documented patterns**:
   - Soft delete implementation
-  - LEFT JOIN handling in PersonaDAO
+  - LEFT JOIN handling in PacienteDAO
   - DNI uniqueness validation logic
-  - Safe vs unsafe domicilio deletion
+  - Safe vs unsafe historia clinica deletion
   - Dependency injection chain
   - Transaction coordination
 
@@ -549,11 +566,11 @@ The following comprehensive analysis confirms the project's correctness:
 
 ### Critical Flow Verification
 
-1. **Create Person with Address**: ✅ Inserts address first, then person with FK
-2. **Update Person**: ✅ Validates DNI uniqueness (allows same person's DNI)
-3. **Delete Address Safely**: ✅ Option 10 nullifies FK before soft delete
+1. **Create Patient  with Health Record s**: ✅ Inserts health record s first, then patient  with FK
+2. **Update Patient **: ✅ Validates DNI uniqueness (allows same patient 's DNI)
+3. **Delete Health Record s Safely**: ✅ Option 10 nullifies FK before soft delete
 4. **Search Operations**: ✅ All trim input and filter by `eliminado = FALSE`
-5. **NULL Address Handling**: ✅ LEFT JOIN works, NULL correctly handled
+5. **NULL Health Record s Handling**: ✅ LEFT JOIN works, NULL correctly handled
 
 ### Known Good Patterns
 
@@ -570,8 +587,8 @@ The following comprehensive analysis confirms the project's correctness:
 - All inserts retrieve generated keys with `Statement.RETURN_GENERATED_KEYS`
 
 **Equals/HashCode**:
-- Persona: based on DNI (correct - DNI is unique)
-- Domicilio: based on calle+numero (correct for semantic comparison)
+- Paciente: based on DNI (correct - DNI is unique)
+- Historia Clínica: based on historia clínica´s attributes (correct for semantic comparison)
 
 ### Important: No Blocking Issues
 
@@ -650,10 +667,10 @@ The rubric evaluates understanding of:
 **Critical cross-references**:
 - MenuHandler option 8 → HU-008 (dangerous delete) vs option 10 → HU-010 (safe delete)
 - RN-001 (DNI unique) is enforced at DB level AND in application validation
-- RN-028 explains why direct domicilio deletion is unsafe
-- RN-036 documents the safe deletion pattern in `PersonaServiceImpl.eliminarDomicilioDePersona()`
+- RN-028 explains why direct historia clinica deletion is unsafe
+- RN-036 documents the safe deletion pattern in `PacienteServiceImpl.eliminarHistoriaClinica DePaciente()`
 
 **Key Features**:
-- DNI uniqueness enforced via UNIQUE constraint and `PersonaServiceImpl.validateDniUnique()`
-- New method `PersonaDAO.buscarPorDni()` and `PersonaServiceImpl.buscarPorDni()` for DNI lookups
+- DNI uniqueness enforced via UNIQUE constraint and `PacienteServiceImpl.validateDniUnique()`
+- New method `PacienteDAO.buscarPorDni()` and `PacienteServiceImpl.buscarPorDni()` for DNI lookups
 - Optimized database connection validation (runs once at class load, not per connection)

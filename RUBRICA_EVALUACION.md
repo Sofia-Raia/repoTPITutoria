@@ -3,7 +3,7 @@
 
 ---
 
-**Proyecto**: Sistema de Gestión de Personas y Domicilios
+**Proyecto**: Sistema de Gestión de Paciente e HistoriaClinica
 **Tipo de Evaluación**: Trabajo Práctico Integrador (TPI)
 **Puntaje Total**: 100 puntos
 **Puntaje Mínimo para Aprobar**: 60 puntos (6/10)

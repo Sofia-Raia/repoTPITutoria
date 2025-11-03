@@ -1,10 +1,10 @@
-# Sistema de Gestión de Personas y Domicilios
+# Sistema de Gestión de Pacientes y Historia Clinicas
 
 ## Trabajo Práctico Integrador - Programación 2
 
 ### Descripción del Proyecto
 
-Este Trabajo Práctico Integrador tiene como objetivo demostrar la aplicación práctica de los conceptos fundamentales de Programación Orientada a Objetos y Persistencia de Datos aprendidos durante el cursado de Programación 2. El proyecto consiste en desarrollar un sistema completo de gestión de personas y domicilios que permita realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) sobre estas entidades, implementando una arquitectura robusta y profesional.
+Este Trabajo Práctico Integrador tiene como objetivo demostrar la aplicación práctica de los conceptos fundamentales de Programación Orientada a Objetos y Persistencia de Datos aprendidos durante el cursado de Programación 2. El proyecto consiste en desarrollar un sistema completo de gestión de pacientes e historias clínicas que permita realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) sobre estas entidades, implementando una arquitectura robusta y profesional.
 
 ### Objetivos Académicos
 
@@ -46,7 +46,7 @@ El desarrollo de este sistema permite aplicar y consolidar los siguientes concep
 - Dependency Injection manual
 
 **6. Validación de Integridad de Datos**
-- Validación de unicidad (DNI único por persona)
+- Validación de unicidad (DNI único por paciente)
 - Validación de campos obligatorios en múltiples niveles
 - Validación de integridad referencial (Foreign Keys)
 - Implementación de eliminación segura para prevenir referencias huérfanas
@@ -57,9 +57,9 @@ El sistema permite gestionar dos entidades principales con las siguientes operac
 
 ## Características Principales
 
-- **Gestión de Personas**: Crear, listar, actualizar y eliminar personas con validación de DNI único
-- **Gestión de Domicilios**: Administrar domicilios de forma independiente o asociados a personas
-- **Búsqueda Inteligente**: Filtrar personas por nombre o apellido con coincidencias parciales
+- **Gestión de Pacientes**: Crear, listar, actualizar y eliminar pacientes con validación de DNI único
+- **Gestión de Historia Clinicas**: Administrar historias clínicas de forma independiente o asociados a pacientes
+- **Búsqueda Inteligente**: Filtrar pacientes por nombre o apellido con coincidencias parciales
 - **Soft Delete**: Eliminación lógica que preserva la integridad de datos
 - **Seguridad**: Protección contra SQL injection mediante PreparedStatements
 - **Validación Multi-capa**: Validaciones en capa de servicio y base de datos
@@ -81,25 +81,46 @@ El sistema permite gestionar dos entidades principales con las siguientes operac
 Ejecutar el siguiente script SQL en MySQL:
 
 ```sql
-CREATE DATABASE IF NOT EXISTS dbtpi3;
-USE dbtpi3;
+CREATE DATABASE IF NOT EXISTS tfi_programacion2_java;
+USE tfi_programacion2_java;
 
-CREATE TABLE domicilios (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    calle VARCHAR(100) NOT NULL,
-    numero VARCHAR(10) NOT NULL,
-    eliminado BOOLEAN DEFAULT FALSE
+-- 2. Tabla Paciente (Clase A)
+CREATE TABLE IF NOT EXISTS Paciente (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    eliminado BOOLEAN NOT NULL DEFAULT FALSE,
+    nombre VARCHAR(80) NOT NULL,
+    apellido VARCHAR(80) NOT NULL,
+    dni VARCHAR(15) NOT NULL UNIQUE,
+    fechaNacimiento DATE,
+    
+    -- Índice en 'eliminado' para optimizar las búsquedas (getAll)
+    INDEX idx_eliminado (eliminado),
+    -- Índice en 'dni' ya está creado por la restricción UNIQUE
+    INDEX idx_apellido_nombre (apellido, nombre)
 );
 
-CREATE TABLE personas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    apellido VARCHAR(50) NOT NULL,
-    dni VARCHAR(20) NOT NULL UNIQUE,
-    domicilio_id INT,
-    eliminado BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (domicilio_id) REFERENCES domicilios(id)
+-- 3. Tabla HistoriaClinica (Clase B)
+CREATE TABLE IF NOT EXISTS HistoriaClinica (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    eliminado BOOLEAN NOT NULL DEFAULT FALSE,
+    nroHistoria VARCHAR(20) NOT NULL UNIQUE,
+    grupoSanguineo ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-') NOT NULL,
+    antecedentes TEXT,
+    medicacionActual TEXT,
+    observaciones TEXT,
+    
+    -- Columna para la relación 1:1
+    -- Se usa INT para coincidir con el 'id' de Paciente
+    paciente_id INT UNIQUE NOT NULL, 
+    
+    -- Restricción de clave foránea 
+    -- UNIQUE en paciente_id garantiza la 1:1.
+    -- ON DELETE CASCADE asegura que si se borra el Paciente (físicamente), se borra la HC.
+    FOREIGN KEY (paciente_id) REFERENCES Paciente(id) ON DELETE CASCADE,
+    
+    INDEX idx_eliminado (eliminado)
 );
+
 ```
 
 ### 2. Compilar el Proyecto
@@ -116,14 +137,14 @@ gradlew.bat clean build
 
 Por defecto conecta a:
 - **Host**: localhost:3306
-- **Base de datos**: dbtpi3
+- **Base de datos**: tfi_programacion2_java
 - **Usuario**: root
 - **Contraseña**: (vacía)
 
 Para cambiar la configuración, usar propiedades del sistema:
 
 ```bash
-java -Ddb.url=jdbc:mysql://localhost:3306/dbtpi3 \
+java -Ddb.url=jdbc:mysql://localhost:3306/tfi_programacion2_java \
      -Ddb.user=usuario \
      -Ddb.password=clave \
      -cp ...
@@ -166,8 +187,8 @@ Salida esperada:
 ```
 Conexion exitosa a la base de datos
 Usuario conectado: root@localhost
-Base de datos: dbtpi3
-URL: jdbc:mysql://localhost:3306/dbtpi3
+Base de datos: tfi_programacion2_java
+URL: jdbc:mysql://localhost:3306/tfi_programacion2_java
 Driver: MySQL Connector/J v8.4.0
 ```
 
@@ -177,24 +198,20 @@ Driver: MySQL Connector/J v8.4.0
 
 ```
 ========= MENU =========
-1. Crear persona
-2. Listar personas
-3. Actualizar persona
-4. Eliminar persona
-5. Crear domicilio
-6. Listar domicilios
-7. Actualizar domicilio por ID
-8. Eliminar domicilio por ID
-9. Actualizar domicilio por ID de persona
-10. Eliminar domicilio por ID de persona
+1. Crear paciente
+2. Listar pacientes
+3. Actualizar paciente y/o HC
+4. Eliminar paciente(Baja Lógica)
+5. Buscar Paciente por DNI
+6. Buscar Paciente por ID
 0. Salir
 ```
 
 ### Operaciones Disponibles
 
-#### 1. Crear Persona
+#### 1. Crear Paciente
 - Captura nombre, apellido y DNI
-- Permite agregar domicilio opcionalmente
+- Permite agregar historia opcionalmente
 - Valida DNI único (no permite duplicados)
 
 **Ejemplo:**
@@ -202,14 +219,12 @@ Driver: MySQL Connector/J v8.4.0
 Nombre: Juan
 Apellido: Pérez
 DNI: 12345678
-¿Desea agregar un domicilio? (s/n): s
-Calle: San Martín
-Numero: 123
+¿Desea agregar una historia clínica? (s/n): s
 ```
 
-#### 2. Listar Personas
+#### 2. Listar Pacientes
 Dos opciones:
-- **(1) Listar todos**: Muestra todas las personas activas
+- **(1) Listar todos**: Muestra todas las pacientes activas
 - **(2) Buscar**: Filtra por nombre o apellido
 
 **Ejemplo de búsqueda:**
@@ -219,50 +234,30 @@ Ingrese texto a buscar: Juan
 **Resultado:**
 ```
 ID: 1, Nombre: Juan, Apellido: Pérez, DNI: 12345678
-   Domicilio: San Martín 123
+   Historia Clinica: San Martín 123
 ```
 
-#### 3. Actualizar Persona
-- Permite modificar nombre, apellido, DNI
-- Permite actualizar o agregar domicilio
+#### 3. Actualizar Paciente y/o HC
+- Permite modificar nombre, apellido, etc
+- Permite actualizar o agregar historia clínica
 - Presionar Enter sin escribir mantiene el valor actual
 
 **Ejemplo:**
 ```
-ID de la persona a actualizar: 1
+ID del paciente a actualizar: 1
 Nuevo nombre (actual: Juan, Enter para mantener):
 Nuevo apellido (actual: Pérez, Enter para mantener): González
-Nuevo DNI (actual: 12345678, Enter para mantener):
-¿Desea actualizar el domicilio? (s/n): n
 ```
 
-#### 4. Eliminar Persona
+#### 4. Eliminar Paciente(Baja Lógica)
 - Eliminación lógica (marca como eliminado, no borra físicamente)
-- Requiere ID de la persona
+- Requiere ID de la paciente
 
-#### 5. Crear Domicilio
-- Crea domicilio independiente sin asociarlo a persona
-- Puede asociarse posteriormente
+#### 5. Buscar Paciente por DNI
+- Busca paciente por dicho campo
 
-#### 6. Listar Domicilios
-- Muestra todos los domicilios activos con ID, calle y número
-
-#### 7. Actualizar Domicilio por ID
-- Actualiza calle y/o número de cualquier domicilio
-- Requiere ID del domicilio
-
-#### 8. Eliminar Domicilio por ID
-- ⚠️ **ADVERTENCIA**: Puede dejar referencias huérfanas si está asociado a persona
-- Usar opción 10 como alternativa segura
-
-#### 9. Actualizar Domicilio por Persona
-- Actualiza el domicilio asociado a una persona específica
-- Requiere ID de la persona
-
-#### 10. Eliminar Domicilio por Persona (RECOMENDADO)
-- ✅ **Eliminación segura**: Primero actualiza la referencia en persona, luego elimina
-- Previene referencias huérfanas
-- Requiere ID de la persona
+#### 6. Buscar Paciente por id
+- Busca paciente por dicho campo
 
 ## Arquitectura
 
@@ -278,20 +273,20 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 ┌───────────▼─────────────────────────┐
 │     Service Layer                   │
 │  (Lógica de negocio y validación)   │
-│  PersonaServiceImpl                 │
-│  DomicilioServiceImpl               │
+│  PacienteServiceImpl                │
+│  HistoriaClinicaServiceImpl         │
 └───────────┬─────────────────────────┘
             │
 ┌───────────▼─────────────────────────┐
 │     DAO Layer                       │
 │  (Acceso a datos)                   │
-│  PersonaDAO, DomicilioDAO           │
+│  PacienteDAO, HistoriaClinicaDAO    │
 └───────────┬─────────────────────────┘
             │
 ┌───────────▼─────────────────────────┐
 │     Models Layer                    │
 │  (Entidades de dominio)             │
-│  Persona, Domicilio, Base           │
+│  Paciente, Historia Clinica, Base   │
 └─────────────────────────────────────┘
 ```
 
@@ -303,18 +298,18 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 
 **Models/**
 - `Base.java`: Clase abstracta con campos id y eliminado
-- `Persona.java`: Entidad Persona (nombre, apellido, dni, domicilio)
-- `Domicilio.java`: Entidad Domicilio (calle, numero)
+- `Paciente.java`: Entidad Paciente (nombre, apellido, dni, historia clínica)
+- `HistoriaClinica.java`: Entidad Historia Clínica  (numero de historia, obser)
 
 **Dao/**
 - `GenericDAO<T>`: Interface genérica con operaciones CRUD
-- `PersonaDAO`: Implementación con queries LEFT JOIN para incluir domicilio
-- `DomicilioDAO`: Implementación para domicilios
+- `PacienteDAO`: Implementación con queries LEFT JOIN para incluir historia
+- `HistoriaClinicaDAO`: Implementación para historias clínicas
 
 **Service/**
 - `GenericService<T>`: Interface genérica para servicios
-- `PersonaServiceImpl`: Validaciones de persona y coordinación con domicilios
-- `DomicilioServiceImpl`: Validaciones de domicilio
+- `PacienteServiceImpl`: Validaciones de paciente y coordinación con historias clínicas
+- `HistoriaClinicaServiceImpl`: Validaciones de historia clínica
 
 **Main/**
 - `Main.java`: Punto de entrada
@@ -326,32 +321,36 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 ## Modelo de Datos
 
 ```
-┌────────────────────┐          ┌──────────────────┐
-│     personas       │          │   domicilios     │
-├────────────────────┤          ├──────────────────┤
-│ id (PK)            │          │ id (PK)          │
-│ nombre             │          │ calle            │
-│ apellido           │          │ numero           │
-│ dni (UNIQUE)       │          │ eliminado        │
-│ domicilio_id (FK)  │──────┐   └──────────────────┘
-│ eliminado          │      │
-└────────────────────┘      │
-                            │
-                            └──▶ Relación 0..1
+┌──────────────────────────┐          ┌──────────────────┐
+│     Paciente             │          │ Historia Clínica │     
+├──────────────────────────┤          ├──────────────────┤
+│ id (PK)                  │          │ id (PK)          │
+│ nombre                   │          │ nroHistoria      │
+│ apellido                 │          │ grupoSanguineo   │
+│ dni (UNIQUE)             │          │ Antecedentes     │
+│ fechaNacimiento          │          │ observaciones    │
+│ historia_clinica_id (FK) │          │ medicacionActual │
+│ eliminado                │          │ eliminado        │
+│                          │          │                  │
+│                          │──────┐   └──────────────────┘
+│                          │      │
+└──────────────────────────┘      │
+                                  │
+                                  └──▶ Relación 0..1
 ```
 
 **Reglas:**
-- Una persona puede tener 0 o 1 domicilio
+- Un paciente puede tener 0 o 1 historia clínica
 - DNI es único (constraint en base de datos y validación en aplicación)
 - Eliminación lógica: campo `eliminado = TRUE`
-- Foreign key `domicilio_id` puede ser NULL
+- Foreign key `historia_clinica_id` puede ser NULL
 
 ## Patrones y Buenas Prácticas
 
 ### Seguridad
 - **100% PreparedStatements**: Prevención de SQL injection
 - **Validación multi-capa**: Service layer valida antes de persistir
-- **DNI único**: Constraint en BD + validación en `PersonaServiceImpl.validateDniUnique()`
+- **DNI único**: Constraint en BD + validación en `PacienteServiceImpl.validateDniUnique()`
 
 ### Gestión de Recursos
 - **Try-with-resources**: Todas las conexiones, statements y resultsets
@@ -371,10 +370,10 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 
 ## Reglas de Negocio Principales
 
-1. **DNI único**: No se permiten personas con DNI duplicado
-2. **Campos obligatorios**: Nombre, apellido y DNI son requeridos para persona
+1. **DNI único**: No se permiten pacientes con DNI duplicado
+2. **Campos obligatorios**: Nombre y apellido son requeridos por paciente
 3. **Validación antes de persistir**: Service layer valida antes de llamar a DAO
-4. **Eliminación segura de domicilio**: Usar opción 10 (por persona) en lugar de opción 8 (por ID)
+4. **Eliminación segura de historia**: Usar opción 10 (por paciente) en lugar de opción 8 (por ID)
 5. **Preservación de valores**: En actualización, campos vacíos mantienen valor original
 6. **Búsqueda flexible**: LIKE con % permite coincidencias parciales
 7. **Transacciones**: Operaciones complejas soportan rollback
@@ -405,12 +404,12 @@ net start MySQL80
 
 **Solución**: Verificar usuario/contraseña en DatabaseConnection.java o usar -Ddb.user y -Ddb.password
 
-### Error: "Unknown database 'dbtpi3'"
+### Error: "Unknown database 'tfi_programacion2_java'"
 **Causa**: Base de datos no creada
 
 **Solución**: Ejecutar script de creación de base de datos (ver sección Instalación)
 
-### Error: "Table 'personas' doesn't exist"
+### Error: "Table 'Paciente' doesn't exist"
 **Causa**: Tablas no creadas
 
 **Solución**: Ejecutar script de creación de tablas (ver sección Instalación)
@@ -419,11 +418,11 @@ net start MySQL80
 
 1. **No hay tarea gradle run**: Debe ejecutarse con java -cp manualmente o desde IDE
 2. **Interfaz solo consola**: No hay GUI gráfica
-3. **Un domicilio por persona**: No soporta múltiples domicilios
+3. **Un historia por paciente**: No soporta múltiples historias clínicas
 4. **Sin paginación**: Listar todos puede ser lento con muchos registros
-5. **Opción 8 peligrosa**: Eliminar domicilio por ID puede dejar referencias huérfanas (usar opción 10)
+5. **Opción 8 peligrosa**: Eliminar historia por ID puede dejar referencias huérfanas (usar opción 10)
 6. **Sin pool de conexiones**: Nueva conexión por operación (aceptable para app de consola)
-7. **Sin transacciones en MenuHandler**: Actualizar persona + domicilio puede fallar parcialmente
+7. **Sin transacciones en MenuHandler**: Actualizar paciente + historia puede fallar parcialmente
 
 ## Documentación Adicional
 
@@ -470,7 +469,7 @@ TPI-Prog2-fusion-final/
 
 - **Idioma**: Español (nombres de clases, métodos, variables)
 - **Nomenclatura**:
-  - Clases: PascalCase (Ej: `PersonaServiceImpl`)
+  - Clases: PascalCase (Ej: `PacienteServiceImpl`)
   - Métodos: camelCase (Ej: `buscarPorDni`)
   - Constantes SQL: UPPER_SNAKE_CASE (Ej: `SELECT_BY_ID_SQL`)
 - **Indentación**: 4 espacios
@@ -538,7 +537,7 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
    - Javadoc completo en todos los archivos fuente
 
 3. **Implementaciones Avanzadas**:
-   - Eliminación segura de domicilios (previene FKs huérfanas)
+   - Eliminación segura de historias clínicas (previene FKs huérfanas)
    - Validación de DNI único en dos niveles (DB + aplicación)
    - Coordinación transaccional entre servicios
    - Búsqueda flexible con LIKE pattern matching
@@ -554,16 +553,16 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
 
 | Concepto | Implementación en el Proyecto |
 |----------|-------------------------------|
-| **Herencia** | Clase abstracta `Base` heredada por `Persona` y `Domicilio` |
+| **Herencia** | Clase abstracta `Base` heredada por `Paciente` y `HistoriaClinica ` |
 | **Polimorfismo** | Interfaces `GenericDAO<T>` y `GenericService<T>` |
 | **Encapsulamiento** | Atributos privados con getters/setters en todas las entidades |
 | **Abstracción** | Interfaces que definen contratos sin implementación |
 | **JDBC** | Conexión, PreparedStatements, ResultSets, transacciones |
-| **DAO Pattern** | `PersonaDAO`, `DomicilioDAO` abstraen el acceso a datos |
-| **Service Layer** | Lógica de negocio separada en `PersonaServiceImpl`, `DomicilioServiceImpl` |
+| **DAO Pattern** | `PacienteDAO`, `HistoriaClinicaDAO` abstraen el acceso a datos |
+| **Service Layer** | Lógica de negocio separada en `PacienteServiceImpl`, `HistoriaClinicaServiceImpl` |
 | **Exception Handling** | Try-catch en todas las capas, propagación controlada |
 | **Resource Management** | Try-with-resources para AutoCloseable (Connection, Statement, ResultSet) |
-| **Dependency Injection** | Construcción manual de dependencias en `AppMenu.createPersonaService()` |
+| **Dependency Injection** | Construcción manual de dependencias en `AppMenu.createPacienteService()` |
 
 ## Contexto Académico
 
